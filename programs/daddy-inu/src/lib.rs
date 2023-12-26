@@ -3,7 +3,8 @@ use anchor_spl::{
     metadata::{
         Metadata,
         CreateMetadataAccountsV3,
-        CreateMasterEditionV3, mpl_token_metadata::types::DataV2,
+        CreateMasterEditionV3, 
+        mpl_token_metadata::types::{DataV2, Creator},
     },
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
@@ -20,7 +21,9 @@ declare_id!("4JTpmcGZjrTeS6QzQBzjsG3B4t1kEbR2JD9uspnhARdP");
 pub mod daddy_inu {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, data: NFTData) -> Result<()> {
+    pub fn mint_nft(ctx: Context<Initialize>, data: NFTData) -> Result<()> {
+        msg!("Initializing Mint Ticket");
+
         let cpi_context = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             MintTo {
@@ -30,7 +33,9 @@ pub mod daddy_inu {
             },
         );
 
-        mint_to(cpi_context, 1)?;
+        mint_to(cpi_context, data.mint_supply)?;
+
+        msg!("Token Minted !!!");
 
         let cpi_context = CpiContext::new(ctx.accounts.token_metadata_program.to_account_info(), 
             CreateMetadataAccountsV3{
@@ -48,7 +53,14 @@ pub mod daddy_inu {
             name: data.name,
             symbol: data.symbol,
             uri: data.uri,
-            creators: None,
+            creators: 
+            data.creators.map(|creators| {
+                creators.into_iter().map(|creator| Creator {
+                    address: creator.address,
+                    share: creator.share,
+                    verified: creator.verified,
+                }).collect()
+            }),            
             collection: None,
             uses: None,
             seller_fee_basis_points: data.seller_fee_basis_points,
@@ -56,6 +68,7 @@ pub mod daddy_inu {
 
         create_metadata_accounts_v3(cpi_context, data_v2, false, true, None)?;
         
+        msg!("Metadata Account Created !!!");
 
         let cpi_context = CpiContext::new(
             ctx.accounts.token_metadata_program.to_account_info(), 
@@ -72,23 +85,39 @@ pub mod daddy_inu {
             },
         );
 
-        create_master_edition_v3(cpi_context, Some(5000000))?;
+        create_master_edition_v3(cpi_context, data.max_supply)?;
+
+        msg!("Master Edition Nft Minted !!!");
 
         Ok(())
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+/// When using Creator Struct IDL does not emit struct type
+/// So this is a temporary fix
+#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+pub struct SerializedCreator {
+    pub address: Pubkey,
+    pub verified: bool,
+    pub share: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NFTData {
     name: String,
     symbol: String,
     uri: String,
-    seller_fee_basis_points: u16,
+    mint_supply: u64,
+    max_supply: Option<u64>,
+    seller_fee_basis_points: u16, 
+    creators: Option<Vec<SerializedCreator>>,
 }
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut, signer)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
     pub signer: AccountInfo<'info>,
     #[account(
         init,
@@ -109,11 +138,13 @@ pub struct Initialize<'info> {
         mut,
         address=find_master_edition_account(&mint.key()).0)
     ]
+     /// CHECK: This is not dangerous because we don't read or write from this account
     pub master_edition_account: AccountInfo<'info>,
     #[account(
         mut,   
         address=find_metadata_account(&mint.key()).0,
     )]
+     /// CHECK: This is not dangerous because we don't read or write from this account
     pub metadata_account: AccountInfo<'info>,
 
     pub rent: Sysvar<'info, Rent>,

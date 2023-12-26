@@ -7,6 +7,9 @@ skip-lint = false
 [programs.localnet]
 daddy_inu = "4JTpmcGZjrTeS6QzQBzjsG3B4t1kEbR2JD9uspnhARdP"
 
+[rpc]
+url = "http://127.0.0.1:8899"
+
 [registry]
 url = "https://api.apr.dev"
 

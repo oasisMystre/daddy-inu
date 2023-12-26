@@ -1260,6 +1260,7 @@ dependencies = [
  "mpl-utils",
  "num-derive 0.3.3",
  "num-traits",
+ "serde",
  "shank",
  "solana-program",
  "spl-associated-token-account",
