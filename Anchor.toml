@@ -14,7 +14,8 @@ url = "http://127.0.0.1:8899"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+# cluster = "Localnet"
+cluster = "devnet"
 wallet = "/home/lyonkvalid/.config/solana/id.json"
 
 [scripts]
